@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -54,6 +55,16 @@ type RPC struct {
 }
 
 func (s *RPC) SendMessage(ctx context.Context, author string, msg string) (bool, error) {
+	author = strings.TrimSpace(author)
+	if msg == "" {
+		return false, ErrorInvalidArgument("author", "empty author")
+	}
+
+	msg = strings.TrimSpace(msg)
+	if msg == "" {
+		return false, ErrorInvalidArgument("msg", "empty message")
+	}
+
 	s.msgLock.RLock()
 	defer s.msgLock.RUnlock()
 
