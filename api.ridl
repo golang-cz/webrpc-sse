@@ -16,10 +16,10 @@ message Message
     + json = author
     + go.tag.db = author
 
-  - createdAt?: timestamp
-    + json = created_at,omitempty
+  - createdAt: timestamp
+    + json = created_at
     + go.tag.db = created_at
 
 service Chatbot
-  - SendMessage(msg: string) => ()
-  - SubscribeMessages(q: string) => (msgs: []string)
+  - SendMessage(author: string, msg: string) => (success: bool)
+  - SubscribeMessages() => (msgs: []Message)
