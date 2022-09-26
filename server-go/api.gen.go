@@ -42,7 +42,7 @@ type Message struct {
 
 type Chatbot interface {
 	SendMessage(ctx context.Context, author string, msg string) (bool, error)
-	SubscribeMessages(ctx context.Context) ([]*Message, error)
+	SubscribeMessages(ctx context.Context) (chan *Message, error)
 }
 
 var WebRPCServices = map[string][]string{
@@ -175,7 +175,7 @@ func (s *chatbotServer) serveSubscribeMessages(ctx context.Context, w http.Respo
 	}
 
 	switch strings.TrimSpace(strings.ToLower(header[:i])) {
-	case "application/json":
+	case "text/event-stream":
 		s.serveSubscribeMessagesJSON(ctx, w, r)
 	default:
 		err := Errorf(ErrBadRoute, "unexpected Content-Type: %q", r.Header.Get("Content-Type"))
@@ -188,7 +188,7 @@ func (s *chatbotServer) serveSubscribeMessagesJSON(ctx context.Context, w http.R
 	ctx = context.WithValue(ctx, MethodNameCtxKey, "SubscribeMessages")
 
 	// Call service method
-	var ret0 []*Message
+	var ret0 chan *Message
 	func() {
 		defer func() {
 			// In case of a panic, serve a 500 error and then panic.
@@ -199,24 +199,41 @@ func (s *chatbotServer) serveSubscribeMessagesJSON(ctx context.Context, w http.R
 		}()
 		ret0, err = s.Chatbot.SubscribeMessages(ctx)
 	}()
-	respContent := struct {
-		Ret0 []*Message `json:"msgs"`
-	}{ret0}
-
 	if err != nil {
 		RespondWithError(w, err)
 		return
 	}
-	respBody, err := json.Marshal(respContent)
-	if err != nil {
-		err = WrapError(ErrInternal, err, "failed to marshal json response")
-		RespondWithError(w, err)
-		return
-	}
 
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Type", "text/event-stream")
 	w.WriteHeader(http.StatusOK)
-	w.Write(respBody)
+
+	for {
+		pingTimeout := time.After(10 * time.Second)
+		select {
+		case <-pingTimeout:
+			w.Write([]byte(": ping\n\n"))
+
+		case respContent := <-ret0:
+			// respContent := struct {
+			// 	Ret0 chan *Message `json:"msgs"`
+			// }{ret0}
+
+			respBody, err := json.Marshal(respContent)
+			if err != nil {
+				err = WrapError(ErrInternal, err, "failed to marshal json response")
+				RespondWithError(w, err)
+				return
+			}
+
+			w.Write([]byte("data: "))
+			w.Write(respBody)
+			w.Write([]byte("\n\n"))
+		}
+
+		if f, ok := w.(http.Flusher); ok {
+			f.Flush()
+		}
+	}
 }
 
 func RespondWithError(w http.ResponseWriter, err error) {

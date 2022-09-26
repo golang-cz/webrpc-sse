@@ -42,7 +42,26 @@ func startServer() error {
 		w.Write([]byte("."))
 	})
 
-	webrpcHandler := NewChatbotServer(&RPC{})
+	webrpcHandler := NewChatbotServer(&RPC{
+		msgId: 3,
+		msgs: []*Message{
+			{
+				ID:     1,
+				Author: "Init Data",
+				Msg:    "First message",
+			},
+			{
+				ID:     2,
+				Author: "Init Data",
+				Msg:    "Second message",
+			},
+			{
+				ID:     3,
+				Author: "Init Data",
+				Msg:    "Third message",
+			},
+		},
+	})
 	r.Handle("/*", webrpcHandler)
 
 	return http.ListenAndServe(":4242", r)
@@ -78,9 +97,18 @@ func (s *RPC) SendMessage(ctx context.Context, author string, msg string) (bool,
 	return true, nil
 }
 
-func (s *RPC) SubscribeMessages(ctx context.Context) ([]*Message, error) {
-	s.msgLock.RLock()
-	defer s.msgLock.RUnlock()
+func (s *RPC) SubscribeMessages(ctx context.Context) (chan *Message, error) {
+	msgs := make(chan *Message, 100)
 
-	return s.msgs, nil
+	go func() {
+		s.msgLock.RLock()
+		defer s.msgLock.RUnlock()
+
+		for _, msg := range s.msgs {
+			log.Println("sent a message..")
+			msgs <- msg
+		}
+	}()
+
+	return msgs, nil
 }
