@@ -1,0 +1,25 @@
+webrpc = v1
+
+name = webrpc-sse
+version = v1.0.0
+
+message Message
+  - ID: uint64
+    + json = id
+    + go.tag.db = id
+
+  - msg: string
+    + json = msg
+    + go.tag.db = msg
+
+  - author: string
+    + json = author
+    + go.tag.db = author
+
+  - createdAt?: timestamp
+    + json = created_at,omitempty
+    + go.tag.db = created_at
+
+service Chatbot
+  - SendMessage(msg: string) => ()
+  - SubscribeMessages(q: string) => (msgs: []string)
