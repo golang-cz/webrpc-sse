@@ -1,6 +1,6 @@
 # WebRPC SSE discovery playground
 
-## Run Go server with:
+## Run Go server at http://localhost:4242 with:
 ```bash
-go run ./server-g
+go run ./server-go
 ```
