@@ -52,8 +52,8 @@ func subscribe() error {
 		return err
 	}
 
-	for _, msg := range msgs {
-		fmt.Printf("%s: %s", msg.Author, msg.Msg)
+	for msg := range msgs {
+		fmt.Printf("%s: %s\n", msg.Author, msg.Msg)
 	}
 
 	return nil

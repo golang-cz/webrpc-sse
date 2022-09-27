@@ -5,6 +5,7 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -45,7 +46,7 @@ type Message struct {
 
 type Chat interface {
 	SendMessage(ctx context.Context, author string, msg string) (bool, error)
-	SubscribeMessages(ctx context.Context) ([]*Message, error)
+	SubscribeMessages(ctx context.Context) (chan *Message, error)
 }
 
 var WebRPCServices = map[string][]string{
@@ -91,13 +92,13 @@ func (c *chatClient) SendMessage(ctx context.Context, author string, msg string)
 	return out.Ret0, err
 }
 
-func (c *chatClient) SubscribeMessages(ctx context.Context) ([]*Message, error) {
-	out := struct {
-		Ret0 []*Message `json:"msgs"`
-	}{}
+func (c *chatClient) SubscribeMessages(ctx context.Context) (chan *Message, error) {
+	// out := struct {
+	// 	Ret0 chan *Message `json:"msgs"`
+	// }{}
 
-	err := doJSONRequest(ctx, c.client, c.urls[1], nil, &out)
-	return out.Ret0, err
+	ret0, err := doSSE[*Message](ctx, c.client, c.urls[1])
+	return ret0, err
 }
 
 // HTTPClient is the interface used by generated clients to send HTTP requests.
@@ -190,6 +191,83 @@ func doJSONRequest(ctx context.Context, client HTTPClient, url string, in, out i
 	}
 
 	return nil
+}
+
+func doSSE[T any](ctx context.Context, client HTTPClient, url string) (chan T, error) {
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Accept", "text/event-stream")
+	if headers, ok := HTTPRequestHeaders(ctx); ok {
+		for k := range headers {
+			for _, v := range headers[k] {
+				req.Header.Add(k, v)
+			}
+		}
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, clientError("request failed", err)
+	}
+
+	if err = ctx.Err(); err != nil {
+		return nil, clientError("aborted because context was done", err)
+	}
+
+	if resp.StatusCode != 200 {
+		return nil, errorFromResponse(resp)
+	}
+
+	c := make(chan T, 1000)
+
+	go func() {
+		defer resp.Body.Close()
+
+		scanner := bufio.NewScanner(resp.Body)
+		scanner.Split(scanEventStream)
+
+		for scanner.Scan() {
+			line := scanner.Bytes()
+
+			if !bytes.HasPrefix(line, sseDataPrefix) {
+				continue
+			}
+
+			jsonPayload := bytes.TrimPrefix(line, sseDataPrefix)
+
+			var v T
+			if err := json.Unmarshal(jsonPayload, &v); err != nil {
+				fmt.Printf("failed to unmarshal.. %v", err)
+			}
+
+			c <- v
+		}
+
+		if err := scanner.Err(); err != nil {
+			fmt.Printf("invalid input: %s", err)
+		}
+	}()
+
+	return c, nil
+}
+
+var sseDataPrefix = []byte("data: ")
+
+func scanEventStream(data []byte, atEOF bool) (advance int, token []byte, err error) {
+	if atEOF {
+		if len(data) == 0 {
+			return 0, nil, nil
+		}
+
+		return len(data), data, nil
+	}
+
+	if i := bytes.Index(data, []byte{'\n', '\n'}); i >= 0 {
+		return i + 2, data[0:i], nil
+	}
+
+	return 0, nil, nil
 }
 
 // errorFromResponse builds a webrpc Error from a non-200 HTTP response.
