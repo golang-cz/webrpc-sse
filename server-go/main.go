@@ -29,7 +29,7 @@ func startServer() error {
 	r.Use(middleware.Recoverer)
 
 	cors := cors.New(cors.Options{
-		AllowedOrigins:   []string{"http://localhost:4242"},
+		AllowedOrigins:   []string{"*"},
 		AllowedMethods:   []string{"GET", "POST", "OPTIONS"},
 		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
 		ExposedHeaders:   []string{"Link"},
@@ -47,17 +47,17 @@ func startServer() error {
 		msgs: []*Message{
 			{
 				ID:     1,
-				Author: "Test",
+				Author: "Init",
 				Msg:    "Message 1",
 			},
 			{
 				ID:     2,
-				Author: "Test",
+				Author: "Init",
 				Msg:    "Message 2",
 			},
 			{
 				ID:     3,
-				Author: "Test",
+				Author: "Init",
 				Msg:    "Message 3",
 			},
 		},
@@ -70,7 +70,7 @@ func startServer() error {
 		// Generate random messages.
 		for {
 			time.Sleep(time.Second * time.Duration(rand.Intn(15)))
-			_, _ = rpcServer.SendMessage(context.Background(), "Test", fmt.Sprintf("Random message"))
+			_, _ = rpcServer.SendMessage(context.Background(), "Random", fmt.Sprintf("Random message"))
 		}
 	}()
 
