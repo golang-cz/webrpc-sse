@@ -11,5 +11,5 @@ curl -X POST -H 'Content-Type: application/json' --data '{"author": "Vojtech", "
 ```
 
 ```
-curl -N -X GET -H 'Content-Type: text/event-stream' http://localhost:4242/rpc/Chat/SubscribeMessages
+curl -N -X GET -H 'Accept: text/event-stream' http://localhost:4242/rpc/Chat/SubscribeMessages
 ```

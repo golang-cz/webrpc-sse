@@ -168,7 +168,7 @@ func (s *ChatServer) serveSendMessageJSON(ctx context.Context, w http.ResponseWr
 }
 
 func (s *ChatServer) serveSubscribeMessages(ctx context.Context, w http.ResponseWriter, r *http.Request) {
-	header := r.Header.Get("Content-Type")
+	header := r.Header.Get("Accept")
 	i := strings.Index(header, ";")
 	if i == -1 {
 		i = len(header)
@@ -178,7 +178,7 @@ func (s *ChatServer) serveSubscribeMessages(ctx context.Context, w http.Response
 	case "text/event-stream":
 		s.serveSubscribeMessagesJSON(ctx, w, r)
 	default:
-		err := Errorf(ErrBadRoute, "unexpected Content-Type: %q", r.Header.Get("Content-Type"))
+		err := Errorf(ErrBadRoute, "unexpected Accept header: %q", r.Header.Get("Accept"))
 		RespondWithError(w, err)
 	}
 }
