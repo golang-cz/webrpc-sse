@@ -42,7 +42,7 @@ type Message struct {
 
 type Chat interface {
 	SendMessage(ctx context.Context, author string, msg string) (bool, error)
-	SubscribeMessages(ctx context.Context) ([]*Message, error)
+	SubscribeMessages(ctx context.Context) (chan *Message, error)
 }
 
 var WebRPCServices = map[string][]string{
@@ -60,21 +60,21 @@ type WebRPCServer interface {
 	http.Handler
 }
 
-type chatbotServer struct {
-	Chatbot
+type ChatServer struct {
+	Chat
 }
 
-func NewChatbotServer(svc Chatbot) WebRPCServer {
-	return &chatbotServer{
-		Chatbot: svc,
+func NewChatServer(svc Chat) WebRPCServer {
+	return &ChatServer{
+		Chat: svc,
 	}
 }
 
-func (s *chatbotServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (s *ChatServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	ctx = context.WithValue(ctx, HTTPResponseWriterCtxKey, w)
 	ctx = context.WithValue(ctx, HTTPRequestCtxKey, r)
-	ctx = context.WithValue(ctx, ServiceNameCtxKey, "Chatbot")
+	ctx = context.WithValue(ctx, ServiceNameCtxKey, "Chat")
 
 	// if r.Method != "POST" {
 	// 	err := Errorf(ErrBadRoute, "unsupported method %q (only POST is allowed)", r.Method)
@@ -83,10 +83,10 @@ func (s *chatbotServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// }
 
 	switch r.URL.Path {
-	case "/rpc/Chatbot/SendMessage":
+	case "/rpc/Chat/SendMessage":
 		s.serveSendMessage(ctx, w, r)
 		return
-	case "/rpc/Chatbot/SubscribeMessages":
+	case "/rpc/Chat/SubscribeMessages":
 		s.serveSubscribeMessages(ctx, w, r)
 		return
 	default:
@@ -96,7 +96,7 @@ func (s *chatbotServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (s *chatServer) serveSendMessage(ctx context.Context, w http.ResponseWriter, r *http.Request) {
+func (s *ChatServer) serveSendMessage(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 	header := r.Header.Get("Content-Type")
 	i := strings.Index(header, ";")
 	if i == -1 {
@@ -112,7 +112,7 @@ func (s *chatServer) serveSendMessage(ctx context.Context, w http.ResponseWriter
 	}
 }
 
-func (s *chatServer) serveSendMessageJSON(ctx context.Context, w http.ResponseWriter, r *http.Request) {
+func (s *ChatServer) serveSendMessageJSON(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 	var err error
 	ctx = context.WithValue(ctx, MethodNameCtxKey, "SendMessage")
 	reqContent := struct {
@@ -167,7 +167,7 @@ func (s *chatServer) serveSendMessageJSON(ctx context.Context, w http.ResponseWr
 	w.Write(respBody)
 }
 
-func (s *chatServer) serveSubscribeMessages(ctx context.Context, w http.ResponseWriter, r *http.Request) {
+func (s *ChatServer) serveSubscribeMessages(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 	header := r.Header.Get("Content-Type")
 	i := strings.Index(header, ";")
 	if i == -1 {
@@ -183,7 +183,7 @@ func (s *chatServer) serveSubscribeMessages(ctx context.Context, w http.Response
 	}
 }
 
-func (s *chatbotServer) serveSubscribeMessagesJSON(ctx context.Context, w http.ResponseWriter, r *http.Request) {
+func (s *ChatServer) serveSubscribeMessagesJSON(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 	var err error
 	ctx = context.WithValue(ctx, MethodNameCtxKey, "SubscribeMessages")
 
@@ -197,7 +197,7 @@ func (s *chatbotServer) serveSubscribeMessagesJSON(ctx context.Context, w http.R
 				panic(rr)
 			}
 		}()
-		ret0, err = s.Chatbot.SubscribeMessages(ctx)
+		ret0, err = s.Chat.SubscribeMessages(ctx)
 	}()
 	if err != nil {
 		RespondWithError(w, err)

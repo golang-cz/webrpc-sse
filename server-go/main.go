@@ -44,7 +44,7 @@ func startServer() error {
 		w.Write([]byte("."))
 	})
 
-	webrpcHandler := NewChatbotServer(&RPC{
+	webrpcHandler := NewChatServer(&RPC{
 		msgId: 3,
 		msgs: []*Message{
 			{
