@@ -44,7 +44,7 @@ func startServer() error {
 		w.Write([]byte("."))
 	})
 
-	webrpcHandler := NewChatServer(&RPC{
+	rpcServer := &RPC{
 		msgId: 3,
 		msgs: []*Message{
 			{
@@ -63,30 +63,31 @@ func startServer() error {
 				Msg:    "Message 3",
 			},
 		},
-	})
+	}
+
+	webrpcHandler := NewChatServer(rpcServer)
 	r.Handle("/*", webrpcHandler)
+
+	go func() {
+		// Generate random messages.
+		for {
+			time.Sleep(time.Second * time.Duration(rand.Intn(15)))
+			_, _ = rpcServer.SendMessage(context.Background(), "Test", fmt.Sprintf("Random message"))
+		}
+	}()
 
 	return http.ListenAndServe(":4242", r)
 }
 
 type RPC struct {
+	// Store with all messages.
 	msgLock sync.RWMutex
 	msgId   uint64
 	msgs    []*Message
-}
 
-func (s *RPC) generateMessage() *Message {
-	s.msgLock.Lock()
-	defer s.msgLock.Unlock()
-
-	s.msgId++
-	msg := &Message{
-		ID:     s.msgId,
-		Author: "Test",
-		Msg:    fmt.Sprintf("Message %v", s.msgId),
-	}
-	s.msgs = append(s.msgs, msg)
-	return msg
+	// Subscriptions - each SSE client can subscribe to new messages.
+	subsLock sync.RWMutex
+	subs     []chan *Message
 }
 
 func (s *RPC) SendMessage(ctx context.Context, author string, msg string) (bool, error) {
@@ -100,16 +101,24 @@ func (s *RPC) SendMessage(ctx context.Context, author string, msg string) (bool,
 		return false, ErrorInvalidArgument("msg", "empty message")
 	}
 
-	s.msgLock.RLock()
-	defer s.msgLock.RUnlock()
-
 	s.msgId++
-	s.msgs = append(s.msgs, &Message{
+	message := &Message{
 		ID:        s.msgId,
 		Author:    author,
 		CreatedAt: time.Now(),
 		Msg:       msg,
-	})
+	}
+
+	s.msgLock.Lock()
+	defer s.msgLock.Unlock()
+	s.msgs = append(s.msgs, message)
+
+	s.subsLock.RLock()
+	defer s.subsLock.RUnlock()
+	for _, subscriber := range s.subs {
+		subscriber <- message
+	}
+
 	return true, nil
 }
 
@@ -121,16 +130,50 @@ func (s *RPC) SubscribeMessages(ctx context.Context) (chan *Message, error) {
 			s.msgLock.RLock()
 			defer s.msgLock.RUnlock()
 
+			// Print all messages.
 			for _, msg := range s.msgs {
 				msgs <- msg
 			}
 		}()
 
+		// Subscribe to new messages.
+		newMsgs, unsubscribe := s.subscribe()
+
 		for {
-			time.Sleep(time.Second * time.Duration(rand.Intn(15)))
-			msgs <- s.generateMessage()
+			select {
+			case msg := <-newMsgs:
+				msgs <- msg
+
+			case <-ctx.Done():
+				unsubscribe()
+				return
+			}
 		}
 	}()
 
 	return msgs, nil
+}
+
+// Subscribe returns a channel with all new messages and unsubscribe() function.
+func (s *RPC) subscribe() (chan *Message, func()) {
+	sub := make(chan *Message, 10)
+
+	s.subsLock.Lock()
+	defer s.subsLock.Unlock()
+
+	s.subs = append(s.subs, sub)
+
+	return sub, func() {
+		s.subsLock.Lock()
+		defer s.subsLock.Unlock()
+
+		for i, subscription := range s.subs {
+			if sub == subscription {
+				// Remove subscription.
+				s.subs = append(s.subs[:i], s.subs[i+1:]...)
+			}
+		}
+
+		close(sub)
+	}
 }
