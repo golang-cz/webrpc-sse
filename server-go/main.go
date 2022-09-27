@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
+	"math/rand"
 	"net/http"
 	"strings"
 	"sync"
@@ -47,18 +49,18 @@ func startServer() error {
 		msgs: []*Message{
 			{
 				ID:     1,
-				Author: "Init Data",
-				Msg:    "First message",
+				Author: "Test",
+				Msg:    "Message 1",
 			},
 			{
 				ID:     2,
-				Author: "Init Data",
-				Msg:    "Second message",
+				Author: "Test",
+				Msg:    "Message 2",
 			},
 			{
 				ID:     3,
-				Author: "Init Data",
-				Msg:    "Third message",
+				Author: "Test",
+				Msg:    "Message 3",
 			},
 		},
 	})
@@ -71,6 +73,20 @@ type RPC struct {
 	msgLock sync.RWMutex
 	msgId   uint64
 	msgs    []*Message
+}
+
+func (s *RPC) generateMessage() *Message {
+	s.msgLock.Lock()
+	defer s.msgLock.Unlock()
+
+	s.msgId++
+	msg := &Message{
+		ID:     s.msgId,
+		Author: "Test",
+		Msg:    fmt.Sprintf("Message %v", s.msgId),
+	}
+	s.msgs = append(s.msgs, msg)
+	return msg
 }
 
 func (s *RPC) SendMessage(ctx context.Context, author string, msg string) (bool, error) {
@@ -101,12 +117,18 @@ func (s *RPC) SubscribeMessages(ctx context.Context) (chan *Message, error) {
 	msgs := make(chan *Message, 100)
 
 	go func() {
-		s.msgLock.RLock()
-		defer s.msgLock.RUnlock()
+		func() {
+			s.msgLock.RLock()
+			defer s.msgLock.RUnlock()
 
-		for _, msg := range s.msgs {
-			log.Println("sent a message..")
-			msgs <- msg
+			for _, msg := range s.msgs {
+				msgs <- msg
+			}
+		}()
+
+		for {
+			time.Sleep(time.Second * time.Duration(rand.Intn(15)))
+			msgs <- s.generateMessage()
 		}
 	}()
 
