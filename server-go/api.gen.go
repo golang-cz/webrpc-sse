@@ -76,11 +76,11 @@ func (s *chatbotServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx = context.WithValue(ctx, HTTPRequestCtxKey, r)
 	ctx = context.WithValue(ctx, ServiceNameCtxKey, "Chatbot")
 
-	if r.Method != "POST" {
-		err := Errorf(ErrBadRoute, "unsupported method %q (only POST is allowed)", r.Method)
-		RespondWithError(w, err)
-		return
-	}
+	// if r.Method != "POST" {
+	// 	err := Errorf(ErrBadRoute, "unsupported method %q (only POST is allowed)", r.Method)
+	// 	RespondWithError(w, err)
+	// 	return
+	// }
 
 	switch r.URL.Path {
 	case "/rpc/Chatbot/SendMessage":
