@@ -7,9 +7,9 @@ go run ./server-go
 
 ## CURL client
 ```
-curl -X POST -H 'Content-Type: application/json' --data '{"author": "Vojtech", "msg": "Hello there!"}' http://localhost:4242/rpc/Chat/SendMessage
+curl -X POST -H 'Origin: http://localhost:4242' -H 'Content-Type: application/json' --data '{"author": "Vojtech", "msg": "Hello there!"}' http://localhost:4242/rpc/Chat/SendMessage
 ```
 
 ```
-curl -N -X GET -H 'Accept: text/event-stream' http://localhost:4242/rpc/Chat/SubscribeMessages
+curl -N -X GET -H 'Origin: http://localhost:4242' -H 'Accept: text/event-stream' http://localhost:4242/rpc/Chat/SubscribeMessages
 ```
