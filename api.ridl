@@ -20,6 +20,6 @@ message Message
     + json = created_at
     + go.tag.db = created_at
 
-service Chatbot
+service Chat
   - SendMessage(author: string, msg: string) => (success: bool)
   - SubscribeMessages() => (msgs: []Message)
