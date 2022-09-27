@@ -42,26 +42,7 @@ func startServer() error {
 		w.Write([]byte("."))
 	})
 
-	rpcServer := &RPC{
-		msgId: 3,
-		msgs: []*Message{
-			{
-				ID:     1,
-				Author: "Init",
-				Msg:    "Message 1",
-			},
-			{
-				ID:     2,
-				Author: "Init",
-				Msg:    "Message 2",
-			},
-			{
-				ID:     3,
-				Author: "Init",
-				Msg:    "Message 3",
-			},
-		},
-	}
+	rpcServer := &RPC{}
 
 	webrpcHandler := NewChatServer(rpcServer)
 	r.Handle("/*", webrpcHandler)
@@ -70,7 +51,7 @@ func startServer() error {
 		// Generate random messages.
 		for {
 			time.Sleep(time.Second * time.Duration(rand.Intn(15)))
-			_, _ = rpcServer.SendMessage(context.Background(), "Random", fmt.Sprintf("Random message"))
+			_, _ = rpcServer.SendMessage(context.Background(), "Bot", fmt.Sprintf("Random message at %v", time.Now().Format("3:04:05 PM")))
 		}
 	}()
 

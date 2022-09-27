@@ -11,7 +11,7 @@ Send message:
 curl -X POST -H 'Content-Type: application/json' --data '{"author": "Vojtech", "msg": "Hello there!"}' http://localhost:4242/rpc/Chat/SendMessage
 ```
 
-Subscriber to all messages:
+Subscribe to all messages:
 ```
 curl -N -X GET -H 'Accept: text/event-stream' http://localhost:4242/rpc/Chat/SubscribeMessages
 ```
@@ -22,7 +22,7 @@ Send message:
 go run ./client-go Hello there!
 ```
 
-Subscriber to all messages:
+Subscribe to all messages:
 ```
 go run ./client-go
 ```
