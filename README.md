@@ -17,12 +17,9 @@ curl -N -X GET -H 'Accept: text/event-stream' http://localhost:4242/rpc/Chat/Sub
 ```
 
 ## Go client
-Send message:
-```
-go run ./client-go Hello there!
-```
-
-Subscribe to all messages:
 ```
 go run ./client-go
 ```
+
+Joins chat.
+Send a message by typing and hitting enter.

@@ -1,27 +1,32 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"os/user"
-	"strings"
 	"time"
 )
 
 func main() {
-	if len(os.Args) == 1 {
-		// No CLI arguments - subscribe & print all messages.
+	// Subscribe to chat server and print all messages to STDOUT.
+	go func() {
 		if err := subscribe(); err != nil {
 			log.Fatal(err)
 		}
-		return
-	}
+	}()
 
-	// Some CLI arguments - send them as a message.
-	if err := sendMessage(strings.Join(os.Args[1:], " ")); err != nil {
+	// Read each line from STDIN and send it as a message to the chat server.
+	scanner := bufio.NewScanner(os.Stdin)
+	for scanner.Scan() {
+		if err := sendMessage(scanner.Text()); err != nil {
+			log.Fatal(err)
+		}
+	}
+	if err := scanner.Err(); err != nil {
 		log.Fatal(err)
 	}
 }
@@ -36,8 +41,7 @@ func subscribe() error {
 	}
 
 	for msg := range msgs {
-		fmt.Printf("%s: %s\n", msg.Author, msg.Msg)
-
+		fmt.Printf("\t%s:\t%s\n", msg.Author, msg.Msg)
 	}
 
 	return nil

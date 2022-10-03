@@ -51,7 +51,7 @@ func startServer() error {
 		// Generate random messages.
 		for {
 			time.Sleep(time.Second * time.Duration(rand.Intn(15)))
-			_, _ = rpcServer.SendMessage(context.Background(), "Bot", fmt.Sprintf("Random message at %v", time.Now().Format("3:04:05 PM")))
+			_, _ = rpcServer.SendMessage(context.Background(), "automated", fmt.Sprintf("Random message at %v", time.Now().Format("3:04:05 PM")))
 		}
 	}()
 
