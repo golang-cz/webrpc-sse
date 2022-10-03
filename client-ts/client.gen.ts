@@ -13,6 +13,17 @@ export const WebRPCSchemaVersion = "v1.0.0"
 // Schema hash generated from your RIDL schema
 export const WebRPCSchemaHash = "5a7eee5a229adbbd13ff1ca380f435267170d395"
 
+interface SSEEndpointHandlers<TData> {
+  onData: (data: TData) => void
+  onError?: (errorEvent: Event) => void
+  onOpen?: (openEvent: Event) => void
+  onClose?: () => void
+}
+type CloseSSEConnectionFunction = () => void
+interface SSEReturn<TData> {
+  subscribe: (handlers: SSEEndpointHandlers<TData>) => CloseSSEConnectionFunction
+}
+interface SSEOptions extends EventSourceInit {}
 
 //
 // Types
@@ -26,7 +37,7 @@ export interface Message {
 
 export interface Chat {
   sendMessage(args: SendMessageArgs, headers?: object): Promise<SendMessageReturn>
-  subscribeMessages(headers?: object): Promise<SubscribeMessagesReturn>
+  subscribeMessages(options?: SSEOptions): SSEReturn<SubscribeMessagesReturn>
 }
 
 export interface SendMessageArgs {
@@ -35,17 +46,14 @@ export interface SendMessageArgs {
 }
 
 export interface SendMessageReturn {
-  success: boolean  
+  success: boolean
 }
 export interface SubscribeMessagesArgs {
 }
 
-export interface SubscribeMessagesReturn {
-  msgs: Array<Message>  
-}
+export type SubscribeMessagesReturn = Message
 
 
-  
 //
 // Client
 //
@@ -62,7 +70,7 @@ export class Chat implements Chat {
   private url(name: string): string {
     return this.hostname + this.path + name
   }
-  
+
   sendMessage = (args: SendMessageArgs, headers?: object): Promise<SendMessageReturn> => {
     return this.fetch(
       this.url('SendMessage'),
@@ -74,23 +82,41 @@ export class Chat implements Chat {
       })
     })
   }
-  
-  subscribeMessages = (headers?: object): Promise<SubscribeMessagesReturn> => {
-    return this.fetch(
-      this.url('SubscribeMessages'),
-      createHTTPRequest({}, headers)
-      ).then((res) => {
-      return buildResponse(res).then(_data => {
-        return {
-          msgs: <Array<Message>>(_data.msgs)
+
+  subscribeMessages = (options?: SSEOptions): SSEReturn<SubscribeMessagesReturn> => {
+    const subscribe = (handlers: SSEEndpointHandlers<SubscribeMessagesReturn>) => {
+      const evtSource = new EventSource(this.url('SubscribeMessages'), options)
+      const { onData, onError, onOpen, onClose } = handlers
+
+      // Add listeners
+      evtSource.addEventListener("message", (e) => {
+        const parsedData = JSON.parse(e.data) as SubscribeMessagesReturn
+        onData(parsedData)
+      });
+      if (onError) {
+        evtSource.addEventListener("error", onError)
+      }
+      if (onOpen) {
+        evtSource.addEventListener("open", onOpen)
+      }
+
+      const close = () => {
+        if (onClose) {
+          onClose()
         }
-      })
-    })
+        evtSource.close()
+      }
+
+      return close
+    }
+
+    return {
+      subscribe
+    };
   }
-  
 }
 
-  
+
 export interface WebRPCError extends Error {
   code: string
   msg: string
