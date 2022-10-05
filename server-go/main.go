@@ -2,9 +2,7 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
-	"math/rand"
 	"net/http"
 	"strings"
 	"sync"
@@ -46,14 +44,6 @@ func startServer() error {
 
 	webrpcHandler := NewChatServer(rpcServer)
 	r.Handle("/*", webrpcHandler)
-
-	go func() {
-		// Generate random messages.
-		for {
-			time.Sleep(time.Second * time.Duration(rand.Intn(15)))
-			_, _ = rpcServer.SendMessage(context.Background(), "automated", fmt.Sprintf("Random message at %v", time.Now().Format("3:04:05 PM")))
-		}
-	}()
 
 	return http.ListenAndServe(":4242", r)
 }
