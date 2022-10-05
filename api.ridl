@@ -22,4 +22,4 @@ message Message
 
 service Chat
   - SendMessage(author: string, msg: string) => (success: bool)
-  - SubscribeMessages() => (msgs: []Message)
+  - SubscribeMessages() => (msgs: stream Message)
