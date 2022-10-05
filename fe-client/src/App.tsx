@@ -1,16 +1,21 @@
-import './App.css';
 import React from 'react';
-import { Chat as ApiContract, Message } from '../../client-ts/client.gen';
 import { flushSync } from 'react-dom';
+import { Chat as ApiContract, Message } from '../../client-ts/client.gen';
+import './App.css';
 
 const customFetch = window.fetch.bind(window);
 const contract = new ApiContract('http://localhost:4242', customFetch);
 
-function Chat() {
+type Props = {
+  username: string;
+};
+
+function Chat(props: Props) {
   const [messages, setMessages] = React.useState<Message[]>([]);
   const [connected, setConnected] = React.useState(false);
   const [userMessage, setUserMessage] = React.useState('');
   const chatRef = React.useRef<HTMLOListElement>(null);
+  const { username } = props;
 
   React.useEffect(() => {
     const { subscribe } = contract.subscribeMessages();
@@ -19,13 +24,16 @@ function Chat() {
       onData: (data) => {
         flushSync(() => {
           setMessages((prevMessages) => [...prevMessages, data]);
-          const lastMessage = chatRef.current?.lastElementChild;
-          lastMessage?.scrollIntoView({
-            block: 'end',
-            behavior: 'smooth',
-            inline: 'nearest',
-          });
         });
+        const lastMessage = chatRef.current?.lastElementChild;
+        lastMessage?.scrollIntoView({
+          block: 'end',
+          behavior: 'smooth',
+          inline: 'nearest',
+        });
+      },
+      onError: (e) => {
+        console.error(e);
       },
       onOpen: () => {
         setConnected(true);
@@ -47,13 +55,13 @@ function Chat() {
   const sendMessage = (e: React.ChangeEvent<HTMLFormElement>) => {
     e.preventDefault();
     contract
-      .sendMessage({ author: 'FE', msg: userMessage })
+      .sendMessage({ author: username, msg: userMessage })
       .then(() => setUserMessage(''));
   };
 
   return (
     <div className="chat">
-      <h1>Chat {connected ? '✅' : '❌'}</h1>
+      <h2>Connected {connected ? '✅' : '❌'}</h2>
       <ol className="messages" ref={chatRef}>
         {messages.map((message) => (
           <li key={message.id}>
@@ -71,15 +79,15 @@ function Chat() {
 
 function App() {
   const [show, setShow] = React.useState(false);
-  const [username, setUsername] = React.useState('');
+  const [username, setUsername] = React.useState('Your name');
 
   return (
     <div className="App">
+      <input value={username} onChange={(e) => setUsername(e.target.value)} />
       <button onClick={() => setShow((prev) => !prev)}>
         {show ? 'Disconnect' : 'Connect'}
       </button>
-      <input value={username} />
-      {show ? <Chat /> : null}
+      {show ? <Chat username={username} /> : null}
     </div>
   );
 }
