@@ -23,7 +23,7 @@ func main() {
 	scanner := bufio.NewScanner(os.Stdin)
 	for scanner.Scan() {
 		if err := sendMessage(scanner.Text()); err != nil {
-			log.Fatal(err)
+			log.Println(err)
 		}
 	}
 	if err := scanner.Err(); err != nil {
